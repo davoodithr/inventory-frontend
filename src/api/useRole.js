@@ -2,10 +2,13 @@ import React from 'react';
 import { login } from './auth'
 
 export default function useRole(){
-  const { user } = useContext(login)
-  return { role: user?.role ?? null, isSuper: !!user?.is_superuser }
+
+  
+
+  return {  }
 }
 
-export function canSeeWarehouses(role, isSuper){
-  return isSuper || ['storekeeper','production_manager'].includes(role)
-}
+// export function canSeeWarehouses(role, isSuper){
+//   console.log(role,"roles")
+//   return isSuper || ['storekeeper','production_manager'].includes(role)
+// }

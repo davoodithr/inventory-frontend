@@ -27,6 +27,8 @@ export async function registerUser(payload) {
 
 export function useRole() {
   const { user } = isAuthed();
+
+  console.log(user?.role)
   return user?.role || null;
 }
 

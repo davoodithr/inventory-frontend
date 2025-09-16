@@ -19,7 +19,7 @@ const Sidebar = () => {
   return (
     <div className="h-screen bg-gray-800 text-white w-64 flex flex-col">
       <div className="text-center text-2xl font-bold py-6 border-b border-gray-700">
-        انبار به انبار
+        نرم افزار جامع انبار
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
         {navItems.map((item) => (
