@@ -1,3 +1,4 @@
+// src\pages\Warehouses.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
@@ -126,6 +127,7 @@ export default function Warehouses() {
       <div className="mx-auto mb-4 h-16 w-16 rounded-2xl bg-gray-100" />
       <h3 className="mb-2 text-lg font-bold text-gray-900">هیچ انباری ثبت نشده است</h3>
       <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
+        
         از دکمه «ایجاد انبار» برای افزودن اولین انبار استفاده کنید یا بعداً دوباره تلاش کنید.
       </p>
       <Link
@@ -139,7 +141,7 @@ export default function Warehouses() {
 
   return (
 
-        <DashboardLayout>
+  <DashboardLayout>
       
     <main className="mx-auto max-w-7xl p-6" dir="rtl">
       {/* Header */}

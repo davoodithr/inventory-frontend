@@ -45,7 +45,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout
-      title="داشبورد"
+      title="."
       subtitle="نمای کلی اطلاعات کاربری و سیستم"
       actions={
         <button className="text-red-600 hover:underline" onClick={handleLogout}>

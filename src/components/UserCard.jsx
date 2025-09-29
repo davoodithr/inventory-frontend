@@ -15,7 +15,7 @@ const UserIcon = (props) => (
 const IdIcon = (props) => (
   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" {...props}>
     <path d="M3 4h18v16H3zM7 8h6v2H7zm0 4h10v2H7z" />
-  </svg>
+  </svg> 
 );
 const AtIcon = (props) => (
   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" {...props}>

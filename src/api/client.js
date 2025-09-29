@@ -62,3 +62,13 @@ api.interceptors.response.use(
     return Promise.reject(err)
   }
 )
+
+export async function fetchTransactions() {
+  const { data } = await api.get("/inv/inventory-transactions");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchStockQuants() {
+  const { data } = await api.get("/inv/stock-quants/");
+  return Array.isArray(data) ? data : [];
+}

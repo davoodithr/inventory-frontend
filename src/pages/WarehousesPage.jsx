@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
-import Warehouses from "./Warehouses"; // your existing content component
+import Warehouses from "./Warehouses"; 
 
 export default function WarehousesPage() {
   return (

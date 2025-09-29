@@ -6,7 +6,10 @@ import ProtectedRoute from './components/ProtectedRoute.jsx'
 import ChangePassword from './pages/ChangePassword.jsx';
 import Register from './pages/Register.jsx';
 import Warehouses from "./pages/Warehouses.jsx";
-import WarehousesPage from "./pages/WarehousesPage";
+import Products from "./pages/Productes.jsx";
+// import WarehousesPage from "./pages/WarehousesPage";
+import WarehouseDetail from "./pages/WarehouseDetail.jsx";
+
 export default function App() {
   return (
     <Routes>
@@ -16,7 +19,10 @@ export default function App() {
       <Route path="ChangePassword" element={<ChangePassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />
       <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
-      <Route path="/inv/warehouses" element={<WarehousesPage />} />
+      <Route path="/inv/warehouse/:id" element={<WarehouseDetail />} />
+      {/* products */}
+      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+
     </Routes>
   )
 }
