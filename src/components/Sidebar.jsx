@@ -1,4 +1,4 @@
-
+// \src\components\Sidebar.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { FaChartBar, FaWarehouse, FaCubes, FaExchangeAlt, FaIndustry, FaVials, FaShoppingCart, FaClipboardList, FaCog } from 'react-icons/fa';

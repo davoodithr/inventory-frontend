@@ -3,18 +3,15 @@ import React, { useMemo } from "react";
 import Badge from "../components/Badge";
 import { toJalaliDateTime } from "../utils/jalali";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
   Tooltip,
-  ResponsiveContainer,
   Legend,
+  ResponsiveContainer,
 } from "recharts";
 
 export default function WarehouseTransactions({ filteredTrx, trxTone }) {
-  // Aggregate quantities by product
   const aggregatedData = useMemo(() => {
     const map = {};
     filteredTrx.forEach((t) => {
@@ -22,42 +19,66 @@ export default function WarehouseTransactions({ filteredTrx, trxTone }) {
       if (!map[name]) map[name] = 0;
       map[name] += Number(t.qty) || 0;
     });
-    return Object.entries(map).map(([name, qty]) => ({ name, qty }));
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [filteredTrx]);
 
-  return (
+  const COLORS = [
+    "#0088FE",
+    "#00C49F",
+    "#FFBB28",
+    "#FF8042",
+    "#8884d8",
+    "#82ca9d",
+    "#a4de6c",
+    "#d0ed57",
+  ];
 
-    
+  return (
     <div className="flex flex-col gap-6">
-        {/* Header Section */}
+      {/* Header Section */}
       <div className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">تراکنش‌های انبار</h1>
             <p className="text-gray-600 mt-1">نمایش جامع تمامی تراکنش‌های انبار به همراه آمار</p>
           </div>
-          <div className="flex items-center gap-4 mt-4 md:mt-0">
+          <div className="flex items-center gap-4 mt-4 md:mt-1">
             <div className="bg-white rounded-lg px-4 py-2 shadow-sm border">
               <span className="text-sm text-gray-600">تعداد تراکنش‌ها:</span>
               <span className="font-bold text-gray-800 mr-2">{filteredTrx.length}</span>
             </div>
           </div>
         </div>
-           </div>
-      {/* Chart */}
-      <div style={{ width: "100%", height: 300 }}>
+      </div>
+
+      {/* PieChartWithPaddingAngle */}
+      <div style={{ width: "100%", height: 400 }}>
         <ResponsiveContainer>
-          <BarChart
-            data={aggregatedData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
+          <PieChart>
+            {/* First Pie */}
+            <Pie
+              data={aggregatedData}
+              cx="25%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={80}
+              fill="#8884d8"
+              paddingAngle={5}
+              dataKey="value"
+              nameKey="name"
+              label
+            >
+              {aggregatedData.map((entry, index) => (
+                <Cell
+                  key={`cell-first-${entry.name}`}
+                  fill={COLORS[index % COLORS.length]}
+                />
+              ))}
+            </Pie>
+
             <Tooltip />
             <Legend />
-            <Bar dataKey="qty" fill="#8884d8" name="مقدار" />
-          </BarChart>
+          </PieChart>
         </ResponsiveContainer>
       </div>
 

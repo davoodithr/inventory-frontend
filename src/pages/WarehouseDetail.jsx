@@ -1,10 +1,11 @@
-// src/pages/WarehouseDetail.jsx
+// \src\pages\WarehouseDetail.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import WarehouseStock from "./WarehouseStock";
 import WarehouseTransactions from "./WarehouseTransactions";
 import SankeyReport from "./SankeyReport";
+import TreeReport from "./TreeReport.jsx";
 import { fetchTransactions, fetchStockQuants } from "../api/client";
 import { fromJalaliStr } from "../utils/jalali";
 
@@ -12,10 +13,9 @@ export default function WarehouseDetail() {
   const { id } = useParams();
   const whId = Number(id);
 
-  const [tab, setTab] = useState("stock"); // stock | trx | sankey
+  const [tab, setTab] = useState("stock"); // stock | trx | sankey | tree
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-
   const [transactions, setTransactions] = useState([]);
   const [quants, setQuants] = useState([]);
 
@@ -25,6 +25,7 @@ export default function WarehouseDetail() {
   const [usage, setUsage] = useState("all");
   const [dateFromJ, setDateFromJ] = useState("");
   const [dateToJ, setDateToJ] = useState("");
+  const [productType, setProductType] = useState("all"); // Default to "all"
 
   useEffect(() => {
     let alive = true;
@@ -34,7 +35,7 @@ export default function WarehouseDetail() {
         setErr("");
         const [trx, sq] = await Promise.all([fetchTransactions(), fetchStockQuants()]);
         if (!alive) return;
-        console.log("Fetched transactions:", trx); // Debug: Log fetched transactions
+        console.log("Fetched transactions:", trx);
         setTransactions(trx);
         setQuants(sq);
       } catch (e) {
@@ -52,7 +53,10 @@ export default function WarehouseDetail() {
 
   // Filtered stock list
   const filteredQuants = useMemo(() => {
-    const list = quants.filter((r) => r?.warehouse?.id === whId);
+    let list = quants.filter((r) => r?.warehouse?.id === whId);
+    if (productType !== "all") {
+      list = list.filter((r) => r.product.product_type === productType);
+    }
     if (!q.trim()) return list;
     const needle = q.trim().toLowerCase();
     return list.filter((r) => {
@@ -60,12 +64,13 @@ export default function WarehouseDetail() {
       const code = String(r.product?.barcode || "").toLowerCase();
       return name.includes(needle) || code.includes(needle);
     });
-  }, [quants, whId, q]);
+  }, [quants, whId, q, productType]);
 
   // Filtered transactions list
   const filteredTrx = useMemo(() => {
-    // For sankey tab, include all transactions; otherwise, filter by whId
-    let list = tab === "sankey" ? transactions : transactions.filter((t) => t?.from_wh?.id === whId || t?.to_wh?.id === whId);
+    let list = (tab === "sankey" || tab === "tree")
+      ? transactions
+      : transactions.filter((t) => t?.from_wh?.id === whId || t?.to_wh?.id === whId);
 
     if (trxType !== "all") list = list.filter((t) => t.trx_type === trxType);
     if (usage !== "all") list = list.filter((t) => t.usage_type === usage);
@@ -98,7 +103,7 @@ export default function WarehouseDetail() {
       });
     }
 
-    console.log("filteredTrx:", list); // Debug: Log filtered transactions
+    console.log("filteredTrx:", list);
     return list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [transactions, whId, tab, trxType, usage, dateFromJ, dateToJ, q]);
 
@@ -125,126 +130,157 @@ export default function WarehouseDetail() {
         </Link>
       }
     >
-      {/* Controls */}
-      <div className="mb-4 flex flex-col gap-3" dir="rtl">
-        {/* Tabs */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setTab("stock")}
-            className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-              tab === "stock" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            موجودی
-          </button>
-          <button
-            onClick={() => setTab("trx")}
-            className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-              tab === "trx" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            تراکنش‌ها
-          </button>
-          <button
-            onClick={() => setTab("sankey")}
-            className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-              tab === "sankey" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            نمودار انتقال
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-600">جستجو</label>
-            <input
-              type="text"
-              placeholder="مثلاً: MFD یا 9304..."
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+      <div className="max-w-full overflow-x-auto">
+        {/* Controls */}
+        <div className="mb-4 flex flex-col gap-3">
+          {/* Tabs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setTab("stock")}
+              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
+                tab === "stock" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              موجودی
+            </button>
+            <button
+              onClick={() => setTab("trx")}
+              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
+                tab === "trx" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              تراکنش‌ها
+            </button>
+            <button
+              onClick={() => setTab("sankey")}
+              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
+                tab === "sankey" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              نمودار انتقال
+            </button>
+            <button
+              onClick={() => setTab("tree")}
+              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
+                tab === "tree" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              نمودار انتقال درختی
+            </button>
           </div>
 
-          {tab !== "stock" && (
-            <>
+          {/* Filters */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="flex flex-col">
+              <label className="text-xs font-medium text-gray-600">جستجو</label>
+              <input
+                type="text"
+                placeholder="مثلاً: MFD یا 9304..."
+                className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+            {tab === "stock" && (
               <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-600">نوع تراکنش</label>
+                <label className="text-xs font-medium text-gray-600">نوع محصول</label>
                 <select
                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-                  value={trxType}
-                  onChange={(e) => setTrxType(e.target.value)}
+                  value={productType}
+                  onChange={(e) => setProductType(e.target.value)}
                 >
                   <option value="all">همه</option>
-                  <option value="in">ورود</option>
-                  <option value="out">خروج</option>
-                  <option value="move">انتقال</option>
-                  <option value="produce">تولید</option>
-                  <option value="consume">مصرف</option>
-                  <option value="scrap">ضایعات</option>
-                  <option value="adjust">اصلاح موجودی</option>
+                  <option value="component">قطعات</option>
+                  <option value="assembly">مونتاژها</option>
                 </select>
               </div>
-
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-600">کاربری</label>
-                <select
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-                  value={usage}
-                  onChange={(e) => setUsage(e.target.value)}
-                >
-                  <option value="all">همه</option>
-                  <option value="production">تولید</option>
-                  <option value="test">تست</option>
-                  <option value="engineering">مهندسی</option>
-                  <option value="rework">بازکاری</option>
-                  <option value="normal">عادی</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-600">از تاریخ (شمسی)</label>
-                <input
-                  type="text"
-                  placeholder="YYYY/MM/DD"
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full ltr:text-left"
-                  value={dateFromJ}
-                  onChange={(e) => setDateFromJ(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-600">تا تاریخ (شمسی)</label>
-                <input
-                  type="text"
-                  placeholder="YYYY/MM/DD"
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full ltr:text-left"
-                  value={dateToJ}
-                  onChange={(e) => setDateToJ(e.target.value)}
-                />
-              </div>
-            </>
-          )}
+            )}
+            {tab !== "stock" && (
+              <>
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600">نوع تراکنش</label>
+                  <select
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
+                    value={trxType}
+                    onChange={(e) => setTrxType(e.target.value)}
+                  >
+                    <option value="all">همه</option>
+                    <option value="in">ورود</option>
+                    <option value="out">خروج</option>
+                    <option value="move">انتقال</option>
+                    <option value="produce">تولید</option>
+                    <option value="consume">مصرف</option>
+                    <option value="scrap">ضایعات</option>
+                    <option value="adjust">اصلاح موجودی</option>
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600">کاربری</label>
+                  <select
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
+                    value={usage}
+                    onChange={(e) => setUsage(e.target.value)}
+                  >
+                    <option value="all">همه</option>
+                    <option value="production">تولید</option>
+                    <option value="test">تست</option>
+                    <option value="engineering">مهندسی</option>
+                    <option value="rework">بازکاری</option>
+                    <option value="normal">عادی</option>
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600">از تاریخ (شمسی)</label>
+                  <input
+                    type="text"
+                    placeholder="YYYY/MM/DD"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full ltr:text-left"
+                    value={dateFromJ}
+                    onChange={(e) => setDateFromJ(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-600">تا تاریخ (شمسی)</label>
+                  <input
+                    type="text"
+                    placeholder="YYYY/MM/DD"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full ltr:text-left"
+                    value={dateToJ}
+                    onChange={(e) => setDateToJ(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Content */}
-      {loading ? (
-        <div>در حال بارگذاری...</div>
-      ) : err ? (
-        <div className="text-red-600">{err}</div>
-      ) : tab === "stock" ? (
-        <WarehouseStock filteredQuants={filteredQuants} />
-      ) : tab === "trx" ? (
-        <WarehouseTransactions filteredTrx={filteredTrx} trxTone={trxTone} />
-      ) : (
-        <SankeyReport
-          transactions={filteredTrx}
-          filters={{ q, usage, dateFromJ, dateToJ }}
-        />
-      )}
+        {/* Content */}
+        {loading ? (
+          <div>در حال بارگذاری...</div>
+        ) : err ? (
+          <div className="text-red-600">{err}</div>
+        ) : tab === "stock" ? (
+          <div className="max-w-full overflow-x-auto">
+            <WarehouseStock
+              key={`stock-${productType}-${whId}`} // Force re-render on filter change
+              filteredQuants={filteredQuants}
+              productType={productType}
+            />
+          </div>
+        ) : tab === "trx" ? (
+          <div className="max-w-full overflow-x-auto">
+            <WarehouseTransactions filteredTrx={filteredTrx} trxTone={trxTone} />
+          </div>
+        ) : tab === "sankey" ? (
+          <div className="max-w-full overflow-x-auto">
+            <SankeyReport transactions={filteredTrx} filters={{ q, usage, dateFromJ, dateToJ }} />
+          </div>
+        ) : (
+          <div className="max-w-full overflow-x-auto">
+            <TreeReport transactions={filteredTrx} filters={{ q, usage, dateFromJ, dateToJ }} />
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
