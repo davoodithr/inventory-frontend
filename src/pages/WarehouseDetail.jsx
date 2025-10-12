@@ -1,284 +1,179 @@
 // \src\pages\WarehouseDetail.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
+import { fetchWarehouseTracking } from "../api/client";
 import WarehouseStock from "./WarehouseStock";
 import WarehouseTransactions from "./WarehouseTransactions";
-import SankeyReport from "./SankeyReport";
-import TreeReport from "./TreeReport.jsx";
-import { fetchTransactions, fetchStockQuants } from "../api/client";
-import { fromJalaliStr } from "../utils/jalali";
+import CreateTransaction from "./CreateTransaction";
+
+// Placeholder components — replace with real ones later
+const SankeyReport = () => <div>{/* TODO: Implement SankeyReport */}</div>;
+const TreeReport = () => <div>{/* TODO: Implement TreeReport */}</div>;
+const WarehouseTimelinePaginated = () => <div>{/* TODO: Implement WarehouseTimelinePaginated */}</div>;
 
 export default function WarehouseDetail() {
   const { id } = useParams();
   const whId = Number(id);
 
   const [tab, setTab] = useState("stock"); // stock | trx | sankey | tree
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [transactions, setTransactions] = useState([]);
-  const [quants, setQuants] = useState([]);
+  const [trackingData, setTrackingData] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Filters
   const [q, setQ] = useState("");
   const [trxType, setTrxType] = useState("all");
   const [usage, setUsage] = useState("all");
   const [dateFromJ, setDateFromJ] = useState("");
   const [dateToJ, setDateToJ] = useState("");
-  const [productType, setProductType] = useState("all"); // Default to "all"
+  const [productType, setProductType] = useState("all");
 
   useEffect(() => {
     let alive = true;
     async function load() {
-      try {
-        setLoading(true);
-        setErr("");
-        const [trx, sq] = await Promise.all([fetchTransactions(), fetchStockQuants()]);
-        if (!alive) return;
-        console.log("Fetched transactions:", trx);
-        setTransactions(trx);
-        setQuants(sq);
-      } catch (e) {
-        if (!alive) return;
-        setErr("خطا در دریافت اطلاعات موجودی و تراکنش‌ها");
-      } finally {
-        if (alive) setLoading(false);
+      if (tab === "trx") {
+        try {
+          setLoading(true);
+          setErr("");
+          const data = await fetchWarehouseTracking(whId);
+          if (!alive) return;
+          setTrackingData(data);
+        } catch (e) {
+          if (!alive) return;
+          setErr("خطا در دریافت اطلاعات");
+        } finally {
+          if (alive) setLoading(false);
+        }
       }
     }
     load();
-    return () => {
-      alive = false;
-    };
-  }, []);
+    return () => { alive = false; };
+  }, [tab, whId, refreshKey]);
 
-  // Filtered stock list
-  const filteredQuants = useMemo(() => {
-    let list = quants.filter((r) => r?.warehouse?.id === whId);
-    if (productType !== "all") {
-      list = list.filter((r) => r.product.product_type === productType);
-    }
-    if (!q.trim()) return list;
-    const needle = q.trim().toLowerCase();
-    return list.filter((r) => {
-      const name = String(r.product?.name || "").toLowerCase();
-      const code = String(r.product?.barcode || "").toLowerCase();
-      return name.includes(needle) || code.includes(needle);
-    });
-  }, [quants, whId, q, productType]);
-
-  // Filtered transactions list
-  const filteredTrx = useMemo(() => {
-    let list = (tab === "sankey" || tab === "tree")
-      ? transactions
-      : transactions.filter((t) => t?.from_wh?.id === whId || t?.to_wh?.id === whId);
-
-    if (trxType !== "all") list = list.filter((t) => t.trx_type === trxType);
-    if (usage !== "all") list = list.filter((t) => t.usage_type === usage);
-
-    const fromDate = fromJalaliStr(dateFromJ);
-    const toDate = (() => {
-      const d = fromJalaliStr(dateToJ);
-      if (!d) return null;
-      d.setHours(23, 59, 59, 999);
-      return d;
-    })();
-
-    if (fromDate) {
-      const fromTs = fromDate.getTime();
-      list = list.filter((t) => new Date(t.created_at).getTime() >= fromTs);
-    }
-    if (toDate) {
-      const toTs = toDate.getTime();
-      list = list.filter((t) => new Date(t.created_at).getTime() <= toTs);
-    }
-
-    if (q.trim()) {
-      const needle = q.trim().toLowerCase();
-      list = list.filter((t) => {
-        const pname = String(t.product?.name || "").toLowerCase();
-        const ref = String(t.ref || "").toLowerCase();
-        const fromName = String(t.from_wh?.name || "").toLowerCase();
-        const toName = String(t.to_wh?.name || "").toLowerCase();
-        return pname.includes(needle) || ref.includes(needle) || fromName.includes(needle) || toName.includes(needle);
-      });
-    }
-
-    console.log("filteredTrx:", list);
-    return list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [transactions, whId, tab, trxType, usage, dateFromJ, dateToJ, q]);
-
-  // Transaction badge tone
-  const trxTone = (type) =>
-    type === "in" ? "blue"
-    : type === "out" ? "amber"
-    : type === "move" ? "violet"
-    : type === "produce" ? "green"
-    : type === "consume" ? "red"
-    : type === "scrap" ? "red"
-    : "gray";
+  const handleTransactionSuccess = () => {
+    setShowCreateModal(false);
+    setRefreshKey((prev) => prev + 1); // Trigger data refresh
+  };
 
   return (
     <DashboardLayout
       title="جزئیات انبار"
       subtitle={`شناسه انبار: ${whId}`}
       actions={
-        <Link
-          to="/inv/warehouses"
-          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          بازگشت
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to="/inv/warehouses"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            بازگشت
+          </Link>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            ایجاد تراکنش
+          </button>
+        </div>
       }
     >
-      <div className="max-w-full overflow-x-auto">
-        {/* Controls */}
-        <div className="mb-4 flex flex-col gap-3">
-          {/* Tabs */}
-          <div className="flex items-center gap-2 flex-wrap">
+      <div className="max-w-full overflow-x-auto" dir="rtl">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {["stock", "trx", "sankey", "tree"].map((t) => (
             <button
-              onClick={() => setTab("stock")}
+              key={t}
+              onClick={() => setTab(t)}
               className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-                tab === "stock" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                tab === t ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              موجودی
+              {t === "stock" ? "موجودی" : t === "trx" ? "تراکنش‌ها" : t === "sankey" ? "نمودار انتقال" : "نمودار درختی"}
             </button>
-            <button
-              onClick={() => setTab("trx")}
-              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-                tab === "trx" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              تراکنش‌ها
-            </button>
-            <button
-              onClick={() => setTab("sankey")}
-              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-                tab === "sankey" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              نمودار انتقال
-            </button>
-            <button
-              onClick={() => setTab("tree")}
-              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
-                tab === "tree" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              نمودار انتقال درختی
-            </button>
-          </div>
+          ))}
+        </div>
 
-          {/* Filters */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="flex flex-col">
-              <label className="text-xs font-medium text-gray-600">جستجو</label>
-              <input
-                type="text"
-                placeholder="مثلاً: MFD یا 9304..."
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </div>
-            {tab === "stock" && (
-              <div className="flex flex-col">
-                <label className="text-xs font-medium text-gray-600">نوع محصول</label>
-                <select
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-                  value={productType}
-                  onChange={(e) => setProductType(e.target.value)}
-                >
-                  <option value="all">همه</option>
-                  <option value="component">قطعات</option>
-                  <option value="assembly">مونتاژها</option>
-                </select>
-              </div>
-            )}
-            {tab !== "stock" && (
+        {/* Filters for Stock and Transactions Tabs */}
+        {(tab === "stock" || tab === "trx") && (
+          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-4">
+            <input
+              type="text"
+              placeholder="جستجو بر اساس نام محصول یا مرجع..."
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none ring-2 ring-transparent transition focus:border-gray-300 focus:ring-gray-100"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <select
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-gray-300 focus:outline-none"
+              value={productType}
+              onChange={(e) => setProductType(e.target.value)}
+            >
+              <option value="all">همه انواع</option>
+              <option value="component">قطعات (Component)</option>
+              <option value="assembly">محصولات مونتاژی (Assembly)</option>
+            </select>
+            {tab === "trx" && (
               <>
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-gray-600">نوع تراکنش</label>
-                  <select
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-                    value={trxType}
-                    onChange={(e) => setTrxType(e.target.value)}
-                  >
-                    <option value="all">همه</option>
-                    <option value="in">ورود</option>
-                    <option value="out">خروج</option>
-                    <option value="move">انتقال</option>
-                    <option value="produce">تولید</option>
-                    <option value="consume">مصرف</option>
-                    <option value="scrap">ضایعات</option>
-                    <option value="adjust">اصلاح موجودی</option>
-                  </select>
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-gray-600">کاربری</label>
-                  <select
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full"
-                    value={usage}
-                    onChange={(e) => setUsage(e.target.value)}
-                  >
-                    <option value="all">همه</option>
-                    <option value="production">تولید</option>
-                    <option value="test">تست</option>
-                    <option value="engineering">مهندسی</option>
-                    <option value="rework">بازکاری</option>
-                    <option value="normal">عادی</option>
-                  </select>
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-gray-600">از تاریخ (شمسی)</label>
-                  <input
-                    type="text"
-                    placeholder="YYYY/MM/DD"
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full ltr:text-left"
-                    value={dateFromJ}
-                    onChange={(e) => setDateFromJ(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-gray-600">تا تاریخ (شمسی)</label>
-                  <input
-                    type="text"
-                    placeholder="YYYY/MM/DD"
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-full ltr:text-left"
-                    value={dateToJ}
-                    onChange={(e) => setDateToJ(e.target.value)}
-                  />
-                </div>
+                <select
+                  className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-gray-300 focus:outline-none"
+                  value={trxType}
+                  onChange={(e) => setTrxType(e.target.value)}
+                >
+                  <option value="all">همه انواع تراکنش</option>
+                  <option value="in">ورود</option>
+                  <option value="out">خروج</option>
+                  <option value="move">انتقال</option>
+                  <option value="produce">تولید</option>
+                  <option value="consume">مصرف</option>
+                  <option value="scrap">ضایعات</option>
+                  <option value="adjust">اصلاح موجودی</option>
+                </select>
+                <select
+                  className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-gray-300 focus:outline-none"
+                  value={usage}
+                  onChange={(e) => setUsage(e.target.value)}
+                >
+                  <option value="all">همه انواع استفاده</option>
+                  <option value="production">تولید</option>
+                  <option value="test">تست</option>
+                  <option value="engineering">مهندسی</option>
+                  <option value="rework">بازکاری</option>
+                  <option value="normal">عادی</option>
+                </select>
               </>
             )}
           </div>
-        </div>
+        )}
 
         {/* Content */}
-        {loading ? (
+        {loading && tab !== "stock" && tab !== "trx" ? (
           <div>در حال بارگذاری...</div>
         ) : err ? (
           <div className="text-red-600">{err}</div>
         ) : tab === "stock" ? (
-          <div className="max-w-full overflow-x-auto">
-            <WarehouseStock
-              key={`stock-${productType}-${whId}`} // Force re-render on filter change
-              filteredQuants={filteredQuants}
-              productType={productType}
-            />
-          </div>
+          <WarehouseStock warehouseId={whId} query={q} productType={productType} />
         ) : tab === "trx" ? (
-          <div className="max-w-full overflow-x-auto">
-            <WarehouseTransactions filteredTrx={filteredTrx} trxTone={trxTone} />
-          </div>
+          <WarehouseTransactions
+            warehouseId={whId}
+            query={q}
+            trxType={trxType}
+            usage={usage}
+            productType={productType}
+          />
         ) : tab === "sankey" ? (
-          <div className="max-w-full overflow-x-auto">
-            <SankeyReport transactions={filteredTrx} filters={{ q, usage, dateFromJ, dateToJ }} />
-          </div>
+          <SankeyReport />
         ) : (
-          <div className="max-w-full overflow-x-auto">
-            <TreeReport transactions={filteredTrx} filters={{ q, usage, dateFromJ, dateToJ }} />
-          </div>
+          <TreeReport />
+        )}
+
+        {/* Create Transaction Modal */}
+        {showCreateModal && (
+          <CreateTransaction
+            warehouseId={whId}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={handleTransactionSuccess}
+          />
         )}
       </div>
     </DashboardLayout>

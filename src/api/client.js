@@ -65,10 +65,25 @@ api.interceptors.response.use(
 
 export async function fetchTransactions() {
   const { data } = await api.get("/inv/inventory-transactions");
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data?.results) ? data.results : []
+  
 }
 
 export async function fetchStockQuants() {
   const { data } = await api.get("/inv/stock-quants/");
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data?.results) ? data.results : []
+}
+
+
+
+// ✅ Main fetch for first page
+export async function fetchWarehouseTracking(warehouseId, page = 1) {
+  const { data } = await api.get(`/inv/inventory-tracking/${warehouseId}/warehouse/?page=${page}`);
+  return data;
+}
+
+// ✅ Extra helper to fetch directly by URL (for next/previous links)
+export async function fetchWarehouseTrackingPage(url) {
+  const { data } = await api.get(url);
+  return data;
 }

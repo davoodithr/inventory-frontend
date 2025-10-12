@@ -7,8 +7,11 @@ import ChangePassword from './pages/ChangePassword.jsx';
 import Register from './pages/Register.jsx';
 import Warehouses from "./pages/Warehouses.jsx";
 import Products from "./pages/Productes.jsx";
+
 // import WarehousesPage from "./pages/WarehousesPage";
 import WarehouseDetail from "./pages/WarehouseDetail.jsx";
+
+// import Transfer from "./pages/Transfer.jsx";
 
 export default function App() {
   return (
@@ -20,9 +23,10 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
       <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
       <Route path="/inv/warehouse/:id" element={<WarehouseDetail />} />
-      {/* products */}
-      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
 
+      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      {/* <Route path="/transfers" element={<ProtectedRoute><Transfers /></ProtectedRoute>} /> */}
+    
     </Routes>
   )
 }

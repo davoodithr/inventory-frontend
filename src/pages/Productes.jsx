@@ -50,7 +50,8 @@ export default function Products() {
         setError(null);
         const { data } = await api.get("/inv/products/");
         if (!alive) return;
-        setProducts(Array.isArray(data) ? data : []);
+        //  return Array.isArray(data?.results) ? data.results : []
+        setProducts(Array.isArray(data?.results) ? data.results : []);
       } catch (err) {
         if (!alive) return;
         setError("بارگذاری محصولات با خطا مواجه شد.");
